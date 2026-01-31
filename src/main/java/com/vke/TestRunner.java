@@ -96,7 +96,7 @@ public class TestRunner {
 
                 for (Method test : classDescriptor.tests()) {
                     String path = className + "." + test.getName();
-                    infos.add(runTest(test, classDescriptor.beforeEach(), classDescriptor.afterEach(), path, instance));
+                    infos.addAll(runTest(test, classDescriptor.beforeEach(), classDescriptor.afterEach(), path, instance));
                 }
 
                 for (Method method : classDescriptor.afterAll()) {
@@ -113,35 +113,48 @@ public class TestRunner {
         return infos;
     }
 
-    private static TestInfo runTest(Method test, Set<Method> beforeEach, Set<Method> afterEach, String path, Object instance) {
+    private static List<TestInfo> runTest(Method test, Set<Method> beforeEach, Set<Method> afterEach, String path, Object instance) {
         long now = System.currentTimeMillis();
+        List<TestInfo> infos = new ArrayList<>();
 
         path = test.isAnnotationPresent(DisplayName.class) ? test.getAnnotation(DisplayName.class).value() : path;
 
-        try {
-            for (Method method : beforeEach) {
-                method.invoke(instance);
-            }
+        if (shouldSkip(test)) {
+            infos.add(new TestInfo(State.SKIP, path, System.currentTimeMillis() - now, null, test.getAnnotation(Disabled.class).value()));
+            return infos;
+        }
+        if (shouldSkipTag(test)) {
+            infos.add(new TestInfo(State.SKIP, path, System.currentTimeMillis() - now, null, "Disabled tag"));
+            return infos;
+        }
 
-            if (shouldSkip(test)) return new TestInfo(State.SKIP, path, System.currentTimeMillis() - now, null, test.getAnnotation(Disabled.class).value());
-            if (shouldSkipTag(test)) return new TestInfo(State.SKIP, path, System.currentTimeMillis() - now, null, "Disabled tag");
-            test.invoke(instance);
+        int repeatAmount = getRepeatAmount(test);
 
-
-            return new TestInfo(State.SUCCESS, path, System.currentTimeMillis() - now, null);
-        } catch (AssertionFailedException e) {
-            return new TestInfo(State.FAIL, path, System.currentTimeMillis() - now, e);
-        } catch (InvocationTargetException | IllegalAccessException e) {
-            return new TestInfo(State.FAIL, path, System.currentTimeMillis() - now, e.getCause());
-        } finally {
+        for (int i = 1; i <= repeatAmount; i++) {
             try {
-                for (Method method : afterEach) {
+                for (Method method : beforeEach) {
                     method.invoke(instance);
                 }
+
+                test.invoke(instance);
+
+
+                infos.add(new TestInfo(State.SUCCESS, path, System.currentTimeMillis() - now, null, null, repeatAmount, i));
+            } catch (AssertionFailedException e) {
+                infos.add(new TestInfo(State.FAIL, path, System.currentTimeMillis() - now, e, null, repeatAmount, i));
             } catch (InvocationTargetException | IllegalAccessException e) {
-                return new TestInfo(State.FAIL, path, System.currentTimeMillis() - now, e.getCause());
+                infos.add(new TestInfo(State.FAIL, path, System.currentTimeMillis() - now, e.getCause(), null, repeatAmount, i));
+            } finally {
+                try {
+                    for (Method method : afterEach) {
+                        method.invoke(instance);
+                    }
+                } catch (InvocationTargetException | IllegalAccessException e) {
+                    infos.add(new TestInfo(State.FAIL, path, System.currentTimeMillis() - now, e.getCause(), null, repeatAmount, i));
+                }
             }
         }
+        return infos;
     }
 
     private static void printTestResults(List<TestInfo> infos, long time) {
@@ -168,6 +181,10 @@ public class TestRunner {
         Colors c = new Colors();
 
         c.blue("[ %d/%d ] ".formatted(idx, total));
+
+        if (info.repeatAmount() != 1) {
+            c.cyan("[ %d/%d ] ".formatted(info.currentRepeat(), info.repeatAmount())).toString();
+        }
 
         switch (info.state()) {
             case SUCCESS -> c.green("✔ PASS  %s (%d ms)%n".formatted(info.path(), info.time()));
@@ -241,9 +258,19 @@ public class TestRunner {
         return false;
     }
 
-    public record TestInfo(State state, String path, long time, Throwable e, String skipMessage) {
+    private static int getRepeatAmount(Method m) {
+        if (m.isAnnotationPresent(Repeat.class)) {
+            return m.getAnnotation(Repeat.class).value();
+        }
+        return 1;
+    }
+
+    public record TestInfo(State state, String path, long time, Throwable e, String skipMessage, int repeatAmount, int currentRepeat) {
         public TestInfo(State state, String path, long time, Throwable e) {
-            this(state, path, time, e, null);
+            this(state, path, time, e, null, 1, 1);
+        }
+        public TestInfo(State state, String path, long time, Throwable e, String skipMessage) {
+            this(state, path, time, e, skipMessage, 1, 1);
         }
     }
     public record ClassDescriptor(

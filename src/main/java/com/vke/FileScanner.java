@@ -5,10 +5,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -31,7 +28,9 @@ public class FileScanner {
         try {
             Set<File> files = new HashSet<>();
             Set<String> classes = new HashSet<>();
-            for (String library : new String[] { "target/test-classes" }) {
+            List<String> targets = new ArrayList<>(List.of("target/test-classes"));
+            targets.addAll(List.of(System.getProperty("java.class.path").split(File.pathSeparator)));
+            for (String library : targets) {
                 URL url;
                 try {
                     url = new File(library).toURI().toURL();

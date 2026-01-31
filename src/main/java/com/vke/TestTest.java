@@ -1,6 +1,7 @@
 package com.vke;
 
 import com.vke.annotations.Disabled;
+import com.vke.annotations.Repeat;
 import com.vke.annotations.organization.DisplayName;
 import com.vke.annotations.Test;
 import com.vke.annotations.organization.Tag;
@@ -36,6 +37,7 @@ public class TestTest {
     }
 
     @Test
+    @Repeat(2)
     public void ab() {
         assertDoesNotThrow((() -> Integer.parseInt("asd")));
     }
