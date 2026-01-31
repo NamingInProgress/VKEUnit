@@ -31,7 +31,7 @@ public class FileScanner {
         try {
             Set<File> files = new HashSet<>();
             Set<String> classes = new HashSet<>();
-            for (String library : System.getProperty("java.class.path").split(File.pathSeparator)) {
+            for (String library : new String[] { "target/test-classes" }) {
                 URL url;
                 try {
                     url = new File(library).toURI().toURL();

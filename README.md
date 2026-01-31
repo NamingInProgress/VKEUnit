@@ -5,24 +5,24 @@ To run tests, add this maven plugin
 ```xml
 <build>
   <plugins>
-    <plugin>
-      <groupId>org.codehaus.mojo</groupId>
-      <artifactId>exec-maven-plugin</artifactId>
-      <version>3.1.0</version>
-      <executions>
-        <execution>
-          <id>run-custom-tests</id>
-          <phase>test</phase>
-          <goals>
-            <goal>java</goal>
-          </goals>
-          <configuration>
-            <mainClass>com.vke.TestRunner</mainClass>
-            <classpathScope>test</classpathScope>
-          </configuration>
-        </execution>
-      </executions>
-    </plugin>
+      <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>exec-maven-plugin</artifactId>
+          <version>3.1.0</version>
+          <executions>
+              <execution>
+                  <id>run-custom-tests</id>
+                  <phase>test</phase>
+                  <goals>
+                      <goal>java</goal>
+                  </goals>
+                  <configuration>
+                      <mainClass>com.vke.TestRunner</mainClass>
+                      <classpathScope>test</classpathScope>
+                  </configuration>
+              </execution>
+          </executions>
+      </plugin>
   </plugins>
 </build>
 ```

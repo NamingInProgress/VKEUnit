@@ -11,10 +11,13 @@ import com.vke.assertions.AssertionFailedException;
 import com.vke.utils.Colors;
 import com.vke.utils.TagFilter;
 
+import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.*;
 
 public class TestRunner {
@@ -193,7 +196,7 @@ public class TestRunner {
             output.red("\n✘ TEST RUN FAILED");
         }
 
-        return output.toString();
+        return output.reset().toString();
     }
 
     private static String formatException(Throwable e) {
