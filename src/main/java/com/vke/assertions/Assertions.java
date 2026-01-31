@@ -7,49 +7,73 @@ public class Assertions {
     /** BOOLEANS **/
 
     public static void assertTrue(boolean condition) {
+        assertTrue(condition, "Expected condition to be true");
+    }
+
+    public static void assertTrue(boolean condition, String message) {
         if (!condition) {
-            fail("Expected condition to be true");
+            fail(message);
         }
     }
 
     public static void assertFalse(boolean condition) {
+        assertFalse(condition, "Expected condition to be false");
+    }
+
+    public static void assertFalse(boolean condition, String message) {
         if (condition) {
-            fail("Expected condition to be false");
+            fail(message);
         }
     }
 
     /** NULL CHECKS **/
 
     public static void assertNull(Object value) {
+        assertNull(value, "Expected null but was <" + value + ">");
+    }
+
+    public static void assertNull(Object value, String message) {
         if (value != null) {
-            fail("Expected null but was <" + value + ">");
+            fail(message);
         }
     }
 
     public static void assertNotNull(Object value) {
+        assertNotNull(value, "Expected non-null value");
+    }
+
+    public static void assertNotNull(Object value, String message) {
         if (value == null) {
-           fail("Expected non-null value");
+           fail(message);
         }
     }
 
     /** EQUALITY **/
 
     public static void assertEquals(Object expected, Object actual) {
+        assertEquals(expected, actual, "Expected <" + expected + "> but was <" + actual + ">");
+    }
+
+    public static void assertEquals(Object expected, Object actual, String message) {
         if (expected == actual) return;
         if (expected != null && expected.equals(actual)) return;
 
         fail(
-                "Expected <" + expected + "> but was <" + actual + ">"
+                message
         );
     }
 
     public static void assertNotEquals(Object expected, Object actual) {
+        assertNotEquals(expected, actual, "Values should not be equal: <" + expected + ">");
+    }
+
+    public static void assertNotEquals(Object expected, Object actual, String message) {
         if (expected == actual) {
-            fail("Values should not be equal: <" + expected + ">");
+            fail(message);
         }
 
         if (expected != null && expected.equals(actual)) {
-            fail("Values should not be equal: <" + expected + ">");
+            fail(message);
         }
     }
 
