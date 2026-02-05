@@ -1,6 +1,11 @@
 package com.vke.assertions;
 
 import com.vke.utils.Executable;
+import com.vke.utils.Utils;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class Assertions {
 
@@ -101,6 +106,20 @@ public class Assertions {
         } catch (Throwable e) {
             fail("Expected no error but got " + e.getClass().getName());
         }
+    }
+
+    public static void assertAll(Executable... blocks) {
+        ArrayList<Throwable> exceptions = new ArrayList<>();
+
+        for (Executable block : blocks) {
+            try {
+                block.execute();
+            } catch (Throwable e) {
+                exceptions.add(e);
+            }
+        }
+
+        throw new MultipleAssertionsFailedException(exceptions);
     }
 
     /** UTILS **/

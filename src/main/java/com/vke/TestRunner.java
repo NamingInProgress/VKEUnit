@@ -1,6 +1,7 @@
 package com.vke;
 
 import com.vke.annotations.*;
+import com.vke.annotations.expected.ExpectedFail;
 import com.vke.annotations.lifecycle.AfterAll;
 import com.vke.annotations.lifecycle.AfterEach;
 import com.vke.annotations.lifecycle.BeforeAll;
@@ -8,8 +9,10 @@ import com.vke.annotations.lifecycle.BeforeEach;
 import com.vke.annotations.organization.DisplayName;
 import com.vke.annotations.organization.Tag;
 import com.vke.assertions.AssertionFailedException;
+import com.vke.assertions.MultipleAssertionsFailedException;
 import com.vke.utils.Colors;
 import com.vke.utils.TagFilter;
+import com.vke.utils.Utils;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
@@ -124,7 +127,7 @@ public class TestRunner {
             return infos;
         }
         if (shouldSkipTag(test)) {
-            infos.add(new TestInfo(State.SKIP, path, System.currentTimeMillis() - now, null, "Disabled tag"));
+            infos.add(new TestInfo(State.SKIP, path, System.currentTimeMillis() - now, null, "Disabled Tag"));
             return infos;
         }
 
@@ -138,11 +141,13 @@ public class TestRunner {
 
                 test.invoke(instance);
 
-
                 infos.add(new TestInfo(State.SUCCESS, path, System.currentTimeMillis() - now, null, null, repeatAmount, i));
-            } catch (AssertionFailedException e) {
-                infos.add(new TestInfo(State.FAIL, path, System.currentTimeMillis() - now, e, null, repeatAmount, i));
             } catch (InvocationTargetException | IllegalAccessException e) {
+                if (expectsFail(test)) {
+                    infos.add(new TestInfo(State.XFAIL, path, System.currentTimeMillis() - now, null, null, test.getAnnotation(ExpectedFail.class).reason(), repeatAmount, i));
+                    continue;
+                }
+
                 infos.add(new TestInfo(State.FAIL, path, System.currentTimeMillis() - now, e.getCause(), null, repeatAmount, i));
             } finally {
                 try {
@@ -160,7 +165,7 @@ public class TestRunner {
     private static void printTestResults(List<TestInfo> infos, long time) {
         System.out.println("▶ Running tests…\n");
 
-        int state[] = new int[3];
+        int state[] = new int[State.values().length];
         final int total = infos.size();
 
         Colors c = new Colors();
@@ -174,7 +179,7 @@ public class TestRunner {
 
         System.out.println(c);
 
-        System.out.println(buildFinishInfo(state[0], state[1], state[2], total, time));
+        System.out.println(buildFinishInfo(state[0], state[1], state[2], state[3], total, time));
     }
 
     private static String formatTest(TestInfo info, int idx, int total) {
@@ -193,18 +198,20 @@ public class TestRunner {
                 c.red(formatException(info.e()));
             }
             case SKIP -> c.yellow("⚠ SKIP  %s (Cause: %s) (%d ms)%n".formatted(info.path(), info.skipMessage(), info.time()));
+            case XFAIL -> c.yellow("⚠ XFAIL  %s (Reason: %s) (%d ms)%n".formatted(info.path(), info.xFailReason(), info.time()));
         }
 
         return c.toString();
     }
 
-    private static String buildFinishInfo(int passed, int failed, int skipped, int total, long time) {
+    private static String buildFinishInfo(int passed, int failed, int skipped, int xfails, int total, long time) {
         Colors output = new Colors().line(GRAY, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-        output.reset ("Tests:    %d/%d%n".formatted(passed + failed + skipped, total));
-        output.green ("Passed:   %d%n".formatted(passed));
-        output.red   ("Failed:   %d%n".formatted(failed));
-        output.yellow("Skipped:  %d%n".formatted(skipped));
-        output.reset ("Time:     %d ms%n".formatted(time));
+        output.reset ("Tests:            %d/%d%n".formatted(passed + failed + skipped + xfails, total));
+        output.green ("Passed:           %d%n".formatted(passed));
+        output.red   ("Failed:           %d%n".formatted(failed));
+        output.yellow("Skipped:          %d%n".formatted(skipped));
+        output.yellow("Expected Fails:   %d%n".formatted(xfails));
+        output.reset ("Time:             %d ms%n".formatted(time));
         output.line(GRAY, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
         if (failed == 0) {
@@ -217,11 +224,14 @@ public class TestRunner {
     }
 
     private static String formatException(Throwable e) {
+        if (e instanceof MultipleAssertionsFailedException mafe) {
+            return formatMultipleAssertionsFailedException(mafe);
+        }
+
         Colors output = new Colors().red("\t\t\t").write(e).write("\n");
 
         for (StackTraceElement element : e.getStackTrace()) {
-            if (element.getClassName().startsWith("java.lang.reflect.")
-                    || element.getClassName().startsWith("jdk.internal.reflect.")) {
+            if (Utils.isReflectStackTraceElement(element)) {
                 break;
             }
 
@@ -231,6 +241,16 @@ public class TestRunner {
 
             output.red("\t\t\t\t").write("at ").write(element).write("\n");
         }
+        return output.toString();
+    }
+
+    private static String formatMultipleAssertionsFailedException(MultipleAssertionsFailedException e) {
+        Colors output = new Colors().red("\t\t\t").write(e.getMessage()).write("\n");
+
+        for (Throwable throwable : e.getThrowables()) {
+            output.write(formatException(throwable));
+        }
+
         return output.toString();
     }
 
@@ -265,12 +285,19 @@ public class TestRunner {
         return 1;
     }
 
-    public record TestInfo(State state, String path, long time, Throwable e, String skipMessage, int repeatAmount, int currentRepeat) {
+    private static boolean expectsFail(Method m) {
+        return m.isAnnotationPresent(ExpectedFail.class);
+    }
+
+    public record TestInfo(State state, String path, long time, Throwable e, String skipMessage, String xFailReason, int repeatAmount, int currentRepeat) {
         public TestInfo(State state, String path, long time, Throwable e) {
-            this(state, path, time, e, null, 1, 1);
+            this(state, path, time, e, null, null, 1, 1);
         }
         public TestInfo(State state, String path, long time, Throwable e, String skipMessage) {
-            this(state, path, time, e, skipMessage, 1, 1);
+            this(state, path, time, e, skipMessage, null, 1, 1);
+        }
+        public TestInfo(State state, String path, long time, Throwable e, String skipMessage, int repeatAmount, int currentRepeat) {
+            this(state, path, time, e, skipMessage, null, repeatAmount, currentRepeat);
         }
     }
     public record ClassDescriptor(
@@ -290,7 +317,8 @@ public class TestRunner {
 
         SUCCESS,
         FAIL,
-        SKIP
+        SKIP,
+        XFAIL
 
     }
 
