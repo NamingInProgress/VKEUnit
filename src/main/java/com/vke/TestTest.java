@@ -38,8 +38,14 @@ public class TestTest {
 
     @Test
     public void someMethod() {
-        assertEquals(true, true);
+        assertEquals(true, false);
         assertFalse(false);
+    }
+
+    @Test
+    public void stringFormatTest() {
+        //assertEquals("Hello World", "Hello  World");
+        assertEquals(123, 123.5f);
     }
 
     @Test

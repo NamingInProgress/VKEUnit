@@ -1,13 +1,14 @@
 package com.vke.assertions;
 
+import com.vke.formatting.Formatter;
+import com.vke.formatting.Formatters;
 import com.vke.utils.Executable;
-import com.vke.utils.Utils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 public class Assertions {
+
+    private static final Formatter DEFAULT = (a, b, c) -> a;
 
     /** BOOLEANS **/
 
@@ -17,7 +18,7 @@ public class Assertions {
 
     public static void assertTrue(boolean condition, String message) {
         if (!condition) {
-            fail(message);
+            fail(message, null, null, DEFAULT);
         }
     }
 
@@ -27,7 +28,7 @@ public class Assertions {
 
     public static void assertFalse(boolean condition, String message) {
         if (condition) {
-            fail(message);
+            fail(message, null, null, DEFAULT);
         }
     }
 
@@ -39,7 +40,7 @@ public class Assertions {
 
     public static void assertNull(Object value, String message) {
         if (value != null) {
-            fail(message);
+            fail(message, null, null, DEFAULT);
         }
     }
 
@@ -49,7 +50,7 @@ public class Assertions {
 
     public static void assertNotNull(Object value, String message) {
         if (value == null) {
-           fail(message);
+           fail(message, null, null, DEFAULT);
         }
     }
 
@@ -64,7 +65,7 @@ public class Assertions {
         if (expected != null && expected.equals(actual)) return;
 
         fail(
-                message
+                message, expected, actual, Formatters.getForTypesEqual(expected.getClass(), actual.getClass())
         );
     }
 
@@ -74,11 +75,11 @@ public class Assertions {
 
     public static void assertNotEquals(Object expected, Object actual, String message) {
         if (expected == actual) {
-            fail(message);
+            fail(message, expected, actual, Formatters.getForTypesNotEqual(expected.getClass(), actual.getClass()));
         }
 
         if (expected != null && expected.equals(actual)) {
-            fail(message);
+            fail(message, expected, actual, Formatters.getForTypesNotEqual(expected.getClass(), actual.getClass()));
         }
     }
 
@@ -91,12 +92,12 @@ public class Assertions {
             if (expected.isInstance(t)) return;
             fail(
                     "Expected " + expected.getName() +
-                            " but got " + t.getClass().getName()
+                            " but got " + t.getClass().getName(), null, null, DEFAULT
             );
         }
 
         fail(
-                "Expected " + expected.getName() + " but nothing was thrown"
+                "Expected " + expected.getName() + " but nothing was thrown", null, null, DEFAULT
         );
     }
 
@@ -104,7 +105,7 @@ public class Assertions {
         try {
             block.execute();
         } catch (Throwable e) {
-            fail("Expected no error but got " + e.getClass().getName());
+            fail("Expected no error but got " + e.getClass().getName(), null, null, DEFAULT);
         }
     }
 
@@ -123,8 +124,8 @@ public class Assertions {
     }
 
     /** UTILS **/
-    private static void fail(String message) {
-        throw new AssertionFailedException(message);
+    private static void fail(String message, Object expected, Object actual, Formatter formatter) {
+        throw new AssertionFailedException(message, expected, actual, formatter);
     }
 
     private Assertions() {}
